@@ -272,6 +272,15 @@ public sealed class UsageCardTests
         Assert.Equal($"{filled}% accent", Bars(body)[0]);
     }
 
+    [Fact]
+    public void AccentColorMatchesWindowsPersonalization()
+    {
+        var color = new Windows.UI.ViewManagement.UISettings()
+            .GetColorValue(Windows.UI.ViewManagement.UIColorType.Accent);
+        var expected = ((uint)color.R << 16) | ((uint)color.G << 8) | color.B;
+        Assert.Equal(expected, UsageCard.BarColor("accent"));
+    }
+
     private static UsageSnapshot Session(double used, string provider = "Codex", string? plan = null) => new(
         provider,
         plan,

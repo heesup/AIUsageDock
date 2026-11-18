@@ -24,6 +24,7 @@ public sealed partial class AIUsageDockCommandsProvider : CommandProvider, IDisp
     private readonly QuotaNotifier? _notifier;
     private readonly Timer _refreshTimer;
     private readonly bool _timerStarted;
+    private string[] _enabledProviderIds;
     private readonly object _refreshGate = new();
     private Task? _currentRefresh;
     private bool _currentForced;
@@ -66,6 +67,7 @@ public sealed partial class AIUsageDockCommandsProvider : CommandProvider, IDisp
             new AntigravityUsageProvider(),
             new OllamaUsageProvider(() => selection.OllamaApiKey),
         ];
+        _enabledProviderIds = _providers.Where(provider => selection.IsEnabled(provider.Id)).Select(provider => provider.Id).ToArray();
 
         var refreshCommand = new RefreshAllCommand(() => RefreshAsync(force: true));
 
@@ -155,7 +157,16 @@ public sealed partial class AIUsageDockCommandsProvider : CommandProvider, IDisp
         .Select(band => new OverviewEntry(band.Provider.DisplayName, band.Provider.Id, band.Last, StatusFor(band.Provider.Id)))
         .ToArray();
 
-    private void OnSelectionChanged(object? sender, EventArgs args) => RaiseItemsChanged();
+    private void OnSelectionChanged(object? sender, EventArgs args)
+    {
+        var enabled = _providers.Where(provider => _selection.IsEnabled(provider.Id)).Select(provider => provider.Id).ToArray();
+        if (!_enabledProviderIds.SequenceEqual(enabled))
+        {
+            _enabledProviderIds = enabled;
+            _overviewBand.Refresh();
+            RaiseItemsChanged();
+        }
+    }
 
     // A newly saved API key should show up without waiting for the next tick.
     private void OnApiKeyChanged(object? sender, EventArgs args) => _ = RefreshAsync(force: true);

@@ -26,8 +26,15 @@ public sealed class ProviderSelectionTests
                 Assert.Equal(5, commandProvider.GetDockBands()!.Length);
                 Assert.Equal(7, commandProvider.TopLevelCommands().Length);
 
+                var itemsChanged = 0;
+                commandProvider.ItemsChanged += (_, _) => itemsChanged++;
+                var displayForm = Assert.IsType<SettingsForm>(Assert.Single(selection.ToolkitSettings.ToContent()));
+                displayForm.SubmitForm("""{"refreshMinutes":"5"}""", "{}");
+                Assert.Equal(0, itemsChanged);
+
                 var form = Assert.IsType<SettingsForm>(Assert.Single(selection.ToolkitSettings.ToContent()));
                 form.SubmitForm("""{"claude":"false","codex":"true","antigravity":"false","ollama":"false"}""", "{}");
+                Assert.Equal(1, itemsChanged);
 
                 Assert.Equal(2, commandProvider.GetDockBands()!.Length);
                 Assert.Equal(4, commandProvider.TopLevelCommands().Length);

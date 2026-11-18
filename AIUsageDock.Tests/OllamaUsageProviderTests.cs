@@ -97,6 +97,45 @@ public sealed class OllamaUsageProviderTests
         Assert.Equal(2, handler.Calls);
     }
 
+    [Fact]
+    public async Task ChangedKeyCannotReuseAnotherAccountsBalanceOrRetryDelay()
+    {
+        var handler = new StubHandler(HttpStatusCode.OK,
+            """{"included":{"session":{"remaining_percent":50,"resets_at":"2999-01-01T00:00:00Z"}}}""");
+        string? key = "first-account";
+        using var provider = new OllamaUsageProvider(new HttpClient(handler), () => key);
+        Assert.True((await provider.GetAsync()).IsSuccess);
+
+        key = "second-account";
+        handler.Status = HttpStatusCode.Unauthorized;
+        Assert.Equal(UsageFailureReason.MissingApiKey, (await provider.GetAsync()).FailureReason);
+        Assert.Equal("Bearer second-account", handler.LastAuthorization);
+
+        handler.Status = HttpStatusCode.TooManyRequests;
+        handler.RetryAfterSeconds = 60;
+        await provider.GetAsync(force: true);
+        key = null;
+        Assert.Equal(UsageFailureReason.MissingApiKey, (await provider.GetAsync()).FailureReason);
+
+        key = "third-account";
+        handler.Status = HttpStatusCode.OK;
+        Assert.True((await provider.GetAsync()).IsSuccess);
+        Assert.Equal("Bearer third-account", handler.LastAuthorization);
+    }
+
+    [Fact]
+    public async Task ChangedKeyCannotUseOldBalanceOnNetworkFailure()
+    {
+        var handler = new StubHandler(HttpStatusCode.OK,
+            """{"included":{"session":{"remaining_percent":50,"resets_at":"2999-01-01T00:00:00Z"}}}""");
+        var key = "first-account";
+        using var provider = new OllamaUsageProvider(new HttpClient(handler), () => key);
+        Assert.True((await provider.GetAsync()).IsSuccess);
+        key = "second-account";
+        handler.Status = HttpStatusCode.ServiceUnavailable;
+        Assert.Null((await provider.GetAsync(force: true)).Snapshot);
+    }
+
     private sealed class StubHandler(HttpStatusCode status, string body) : HttpMessageHandler
     {
         public HttpStatusCode Status { get; set; } = status;

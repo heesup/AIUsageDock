@@ -21,6 +21,14 @@ env:
 jobs:
   build:
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - architecture: x64
+            suffix: ''
+          - architecture: arm64
+            suffix: '-arm64'
     permissions:
       contents: write
 
@@ -43,7 +51,7 @@ jobs:
       - name: Publish
         run: >
           dotnet publish AIUsageDock/AIUsageDock.csproj
-          -c Release -r win-x64 --self-contained false
+          -c Release -r win-${{ matrix.architecture }} --self-contained false
           -p:GenerateAppxPackageOnBuild=false
           -o artifacts/publish
 
@@ -71,8 +79,7 @@ jobs:
           [xml]$manifest = Get-Content $manifestPath
           $identity = $manifest.Package.Identity
 
-          # The payload is win-x64, so say so rather than shipping a neutral package.
-          $identity.SetAttribute('ProcessorArchitecture', 'x64')
+          $identity.SetAttribute('ProcessorArchitecture', '${{ matrix.architecture }}')
 
           # A tag drives the package version; every other build keeps the manifest's own.
           if ($env:REF_TYPE -eq 'tag' -and $env:REF_NAME -match '^v(\d+)\.(\d+)\.(\d+)$') {
@@ -102,7 +109,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          & $env:MAKEAPPX pack /d artifacts/staging /p artifacts/msix/AIUsageDock.msix /o
+          & $env:MAKEAPPX pack /d artifacts/staging /p artifacts/msix/AIUsageDock${{ matrix.suffix }}.msix /o
           if ($LASTEXITCODE -ne 0) { throw "makeappx pack failed with exit code $LASTEXITCODE" }
 
       - name: Sign MSIX
@@ -113,7 +120,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $pfx = Join-Path (Get-Location) 'artifacts/signing.pfx'
-          $cer = Join-Path (Get-Location) 'artifacts/msix/AIUsageDock.cer'
+          $cer = Join-Path (Get-Location) 'artifacts/msix/AIUsageDock${{ matrix.suffix }}.cer'
 
           if ($env:SIGNING_CERTIFICATE) {
             Write-Host 'Signing with the certificate from repository secrets.'
@@ -140,7 +147,7 @@ jobs:
           $loaded = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($pfx, $password)
           [IO.File]::WriteAllBytes($cer, $loaded.Export('Cert'))
 
-          & $env:SIGNTOOL sign /fd SHA256 /f $pfx /p $password artifacts/msix/AIUsageDock.msix
+          & $env:SIGNTOOL sign /fd SHA256 /f $pfx /p $password artifacts/msix/AIUsageDock${{ matrix.suffix }}.msix
           if ($LASTEXITCODE -ne 0) { throw "signtool sign failed with exit code $LASTEXITCODE" }
 
           Remove-Item $pfx -Force
@@ -154,39 +161,53 @@ jobs:
             Import-Certificate -FilePath $cer -CertStoreLocation 'Cert:\LocalMachine\TrustedPeople' | Out-Null
           }
 
-          & $env:SIGNTOOL verify /pa /v artifacts/msix/AIUsageDock.msix
+          & $env:SIGNTOOL verify /pa /v artifacts/msix/AIUsageDock${{ matrix.suffix }}.msix
           if ($LASTEXITCODE -ne 0) { throw "signtool verify failed with exit code $LASTEXITCODE" }
 
       - name: Upload MSIX
         uses: actions/upload-artifact@v4
         with:
-          name: AIUsageDock-msix
+          name: AIUsageDock-msix${{ matrix.suffix }}
           path: artifacts/msix/
           if-no-files-found: error
 
       - name: Upload unpackaged build
         uses: actions/upload-artifact@v4
         with:
-          name: AIUsageDock-unpackaged
+          name: AIUsageDock-unpackaged${{ matrix.suffix }}
           path: artifacts/publish/
           if-no-files-found: error
 
+  release:
+    if: github.ref_type == 'tag'
+    needs: build
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: AIUsageDock-msix*
+          merge-multiple: true
+          path: artifacts/msix
+
       - name: Publish release
-        if: github.ref_type == 'tag'
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
           REF_NAME: ${{ github.ref_name }}
         run: |
           $ErrorActionPreference = 'Stop'
           $notes = @(
-            "AI Usage Dock $env:PACKAGE_VERSION",
+            "AI Usage Dock $env:REF_NAME",
             '',
-            'Install `AIUsageDock.msix` and restart Command Palette, then enable the bands',
+            'Install `AIUsageDock.msix` for x64 or `AIUsageDock-arm64.msix` for ARM64.',
+            'Restart Command Palette, then enable the bands',
             'under Command Palette Settings, Dock, Bands.',
             '',
             'If the package was signed with a build certificate rather than a trusted one,',
-            'import `AIUsageDock.cer` into Local Machine, Trusted People first, otherwise',
+            'import the matching `.cer` into Local Machine, Trusted People first, otherwise',
             'Windows refuses the install.'
           )
           Set-Content -Path artifacts/release-notes.md -Value $notes -Encoding utf8
@@ -194,6 +215,9 @@ jobs:
           gh release create $env:REF_NAME `
             artifacts/msix/AIUsageDock.msix `
             artifacts/msix/AIUsageDock.cer `
+            artifacts/msix/AIUsageDock-arm64.msix `
+            artifacts/msix/AIUsageDock-arm64.cer `
+            --repo $env:GH_REPO `
             --title $env:REF_NAME `
             --notes-file artifacts/release-notes.md
           if ($LASTEXITCODE -ne 0) { throw "gh release create failed with exit code $LASTEXITCODE" }

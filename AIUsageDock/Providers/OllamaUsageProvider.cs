@@ -28,6 +28,7 @@ internal sealed class OllamaUsageProvider : IUsageProvider
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
     private DateTimeOffset _retryAfter = DateTimeOffset.MinValue;
     private UsageResult? _cached;
+    private string? _cachedApiKey;
 
     /// <param name="savedApiKey">The key saved from the settings page; when it returns
     /// null the <see cref="ApiKeyVariable"/> environment variable is used.</param>
@@ -50,14 +51,17 @@ internal sealed class OllamaUsageProvider : IUsageProvider
 
     public async Task<UsageResult> GetAsync(bool force = false, CancellationToken cancellationToken = default)
     {
-        if (!force && IsFresh(_cached?.Snapshot))
-        {
-            return _cached!;
-        }
-
         await _refreshLock.WaitAsync(cancellationToken);
         try
         {
+            var apiKey = NullIfBlank(_readApiKey())?.Trim();
+            if (!string.Equals(apiKey, _cachedApiKey, StringComparison.Ordinal))
+            {
+                _cached = null;
+                _retryAfter = DateTimeOffset.MinValue;
+                _cachedApiKey = apiKey;
+            }
+
             if (!force && IsFresh(_cached?.Snapshot))
             {
                 return _cached!;
@@ -70,7 +74,6 @@ internal sealed class OllamaUsageProvider : IUsageProvider
                 return _cached;
             }
 
-            var apiKey = _readApiKey();
             if (string.IsNullOrWhiteSpace(apiKey))
             {
                 return _cached = UsageResult.Failure(UsageFailureReason.MissingApiKey, $"set {ApiKeyVariable}");

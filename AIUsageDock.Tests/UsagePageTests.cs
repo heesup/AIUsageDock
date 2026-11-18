@@ -97,6 +97,19 @@ public sealed class UsagePageTests
         }
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task OllamaFailureCannotResurrectAnotherAccountsReading(bool rejectedKey)
+    {
+        var provider = new GatedProvider(Reading(40), "ollama");
+        var page = new UsagePage(provider);
+        Assert.Contains("60% left", Text(page));
+        provider.Complete(UsageResult.Failure(rejectedKey ? UsageFailureReason.MissingApiKey : UsageFailureReason.ProcessFailed, "new account failed"));
+        await WaitFor(() => page.PendingRefresh is null);
+        Assert.DoesNotContain("60% left", Text(page));
+    }
+
     [Fact]
     public void FirstOpenWithoutAnyReadingShowsLoading()
     {
@@ -143,12 +156,12 @@ public sealed class UsagePageTests
     }
 
     /// <summary>Answers GetAsync only when the test calls Complete.</summary>
-    private sealed class GatedProvider(UsageResult? last) : IUsageProvider
+    private sealed class GatedProvider(UsageResult? last, string id = "codex") : IUsageProvider
     {
         private readonly TaskCompletionSource<UsageResult> _answer = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private UsageResult? _last = last;
 
-        public string Id => "codex";
+        public string Id => id;
         public string DisplayName => "Codex";
         public string IconName => "codex";
         public int Calls { get; private set; }

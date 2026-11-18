@@ -352,8 +352,15 @@ internal static class UsageCard
         "attention" => 0xE5484D,
         "warning" => 0xE2A200,
         "good" => 0x30A46C,
-        _ => 0x0A84FF,
+        _ => AccentColor(),
     };
+
+    private static uint AccentColor()
+    {
+        var color = new Windows.UI.ViewManagement.UISettings()
+            .GetColorValue(Windows.UI.ViewManagement.UIColorType.Accent);
+        return ((uint)color.R << 16) | ((uint)color.G << 8) | color.B;
+    }
 
     private static string BarColorName(UsageWindow window, DisplayOptions options) =>
         Tier(window, options) switch { 2 => "Attention", 1 => "Warning", _ => "Good" };

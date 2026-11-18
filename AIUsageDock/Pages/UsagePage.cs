@@ -204,7 +204,9 @@ internal sealed class UsagePage : ContentPage
                 lastGood = _lastGood;
             }
 
-            if (lastGood is not null)
+            // Ollama already retains stale data for the current key. Its failures
+            // must not resurrect a previous account's reading here.
+            if (lastGood is not null && _provider.Id != "ollama")
             {
                 result = UsageResult.Success(lastGood with { IsStale = true });
             }
