@@ -27,7 +27,7 @@ All notable changes to AI Usage Dock. Versions match the `v*` tags and the packa
 ### Changed
 
 - Detail pages use the tray panel layout and fit without scrolling for a typical provider: the provider name with the account email opposite, "Updated 2 minutes ago · source" with the plan opposite, then per window a thin rounded bar with a tick where an even spend would stand, the percentage with the reset opposite, and the pace line. Account details are small label/value rows; the plan and email are not repeated there. Refreshing, refresh-failure and incident notices are single lines.
-- Bars are drawn as small images instead of tinted containers, so they are a few pixels tall and solid in both themes. **Usage bar colors → Accent color** now means a fixed blue (`#0A84FF`), not the system accent.
+- Bars are drawn as small images instead of tinted containers, so they are a few pixels tall and solid in both themes. **Usage bar colors → Accent color** fills them with the Windows accent colour.
 - Band subtitles show the reset as a countdown (`wk 55% · 1h 23m`) unless **Show reset times as** is set to the clock time.
 - A bar turns yellow at 75% used and red at 90% used. It used to change one point later (under 25% and under 10% left).
 - **Refresh AI usage** now waits for a background refresh already under way and then reads again, instead of returning at once without reading.
