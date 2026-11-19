@@ -57,7 +57,7 @@ internal sealed class UsagePage : ContentPage
         _status = status ?? (() => null);
         _onRefreshed = onRefreshed;
         _clock = clock ?? (() => DateTimeOffset.UtcNow);
-        Id = $"aiusagedock.page.{provider.Id}";
+        Id = IdFor(provider.Id);
         Name = $"{provider.DisplayName} usage";
         Title = $"{provider.DisplayName} usage";
         Icon = ProviderIcons.Filled(provider);
@@ -84,6 +84,9 @@ internal sealed class UsagePage : ContentPage
 
         Commands = [.. commands];
     }
+
+    /// <summary>The command id of a provider's page, which a notification links to.</summary>
+    internal static string IdFor(string providerId) => $"aiusagedock.page.{providerId}";
 
     /// <summary>The background refresh in flight, if any; exposed for tests.</summary>
     internal Task? PendingRefresh

@@ -335,6 +335,63 @@ public sealed class ProviderParserTests
     }
 
     [Fact]
+    public void AntigravityParserListsEachGroupsModelsFromThePayload()
+    {
+        // Shape of agy 1.5.2's /usage answer after its model catalog changed.
+        const string json = """
+        {
+          "status": "SUCCESS",
+          "command": {
+            "name": "usage",
+            "data": {
+              "groups": [
+                {
+                  "name": "Gemini Models",
+                  "description": "Models within this group: Gemini 4 Neon, Gemini 4 Hydrogen, Gemini 3.8 Flash",
+                  "buckets": [
+                    { "id": "gemini-weekly", "window": "weekly", "remaining_fraction": 0.99, "reset_time": "2030-01-08T00:00:00Z" },
+                    { "id": "gemini-5h", "window": "5h", "remaining_fraction": 1, "reset_time": "2030-01-01T05:00:00Z" }
+                  ]
+                },
+                {
+                  "name": "Claude and GPT models",
+                  "description": "Models within this group: Claude Opus 5.5, Claude Sonnet 5.5, GPT-OSS 120B.",
+                  "buckets": [ { "id": "3p-weekly", "window": "weekly", "remaining_fraction": 0.98, "reset_time": "2030-01-08T00:00:00Z" } ]
+                },
+                {
+                  "name": "Gemini 4 Argon",
+                  "description": "For paid Pro plans, Argon quota is separate.",
+                  "buckets": [ { "id": "gemini-argon-wtu-weekly", "window": "weekly", "remaining_fraction": 0.99, "reset_time": "2030-01-08T00:00:00Z" } ]
+                }
+              ]
+            }
+          }
+        }
+        """;
+
+        var snapshot = AntigravityUsageProvider.ParseUsageJson(json, DateTimeOffset.UnixEpoch, "dev@example.com")!;
+
+        Assert.Equal(
+            [
+                ("Account", "dev@example.com"),
+                ("Gemini Models", "Gemini 4 Neon, Gemini 4 Hydrogen, Gemini 3.8 Flash"),
+                ("Claude and GPT models", "Claude Opus 5.5, Claude Sonnet 5.5, GPT-OSS 120B"),
+            ],
+            snapshot.AccountDetails.Select(detail => (detail.Label, detail.Value)));
+        Assert.Equal(4, snapshot.Windows.Count);
+    }
+
+    [Theory]
+    [InlineData(null, null)]
+    [InlineData("For paid Pro plans, Argon quota is separate.", null)]
+    [InlineData("Models within this group:", null)]
+    [InlineData("  Models within this group: A ,B,, C. ", "A, B, C")]
+    public void AntigravityModelListIsReadOnlyFromAModelListDescription(string? description, string? expected)
+    {
+        Assert.Equal(expected, AntigravityUsageProvider.ModelsIn(description));
+    }
+
+    [Fact]
     public void AntigravityParserAttachesActiveAccount()
     {
         const string json = """

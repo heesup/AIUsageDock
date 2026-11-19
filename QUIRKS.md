@@ -69,3 +69,9 @@ The extension never reads or stores OAuth access tokens. It calls two kinds of e
 The installer is an `.msix` rather than an `.exe` or `.msi` because the extension registers a COM server and a `windows.appExtension`, and Windows only honours either from a package with MSIX identity. A bare executable has no package identity, so Command Palette would never discover it.
 
 Releases are signed with a `CN=AIUsageDock-Dev` certificate. Windows will not install the package until that certificate's public half (`AIUsageDock.cer`) is in **Local Machine → Trusted People**; the [README](README.md#install-a-release) has the two commands.
+
+## Notifications
+
+### Clicking a quota warning asks for permission first
+
+A quota warning opens its provider's usage page through a Command Palette command link, `x-cmdpal://commands/<provider>/aiusagedock.page.<provider id>`. Command Palette cannot tell which app opened a link, so the first time each page is opened this way it asks **Allow this command link?** Choose **Always allow** to open that page directly from then on, or **Open once** to be asked again next time. Remembered choices are listed, and can be revoked, under Command Palette **Settings → General**. If **External command links** is turned off there, clicking a warning does nothing.

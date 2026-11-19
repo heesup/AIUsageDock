@@ -114,9 +114,16 @@ internal sealed class AntigravityUsageProvider : IUsageProvider
         }
 
         var windows = new List<UsageWindow>();
+        var catalog = new List<UsageDetail>();
         foreach (var group in groups.EnumerateArray())
         {
             var groupName = TryGetString(group, "name") ?? "Models";
+            if (ModelsIn(TryGetString(group, "description")) is { } models &&
+                catalog.All(detail => detail.Label != groupName))
+            {
+                catalog.Add(new UsageDetail(groupName, models));
+            }
+
             if (!group.TryGetProperty("buckets", out var buckets) || buckets.ValueKind != JsonValueKind.Array)
             {
                 continue;
@@ -175,7 +182,29 @@ internal sealed class AntigravityUsageProvider : IUsageProvider
             details.Add(new UsageDetail("Account", activeAccount));
         }
 
+        // Which models each group covers, read from the payload on every refresh, so a
+        // catalog change in agy shows up without a code change.
+        details.AddRange(catalog);
+
         return new UsageSnapshot("Antigravity", plan, windows, fetchedAt, "agy /usage", Details: details);
+    }
+
+    /// <summary>
+    /// The model list in a group description such as "Models within this group: Gemini 4
+    /// Neon, Gemini 3.8 Flash". Descriptions that are not a list (Argon's plan note) give null.
+    /// </summary>
+    internal static string? ModelsIn(string? description)
+    {
+        const string prefix = "Models within this group:";
+        if (description is null || !description.TrimStart().StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var models = description.TrimStart()[prefix.Length..]
+            .TrimEnd('.', ' ')
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return models.Length == 0 ? null : string.Join(", ", models);
     }
 
     /// <summary>

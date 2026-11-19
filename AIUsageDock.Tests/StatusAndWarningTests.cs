@@ -167,6 +167,12 @@ public sealed class StatusAndWarningTests
     {
         public List<(string Title, string Body)> Shown { get; } = [];
 
-        public void Show(string title, string body) => Shown.Add((title, body));
+        public List<string?> Links { get; } = [];
+
+        public void Show(string title, string body, string? link = null)
+        {
+            Shown.Add((title, body));
+            Links.Add(link);
+        }
     }
 }
