@@ -103,9 +103,10 @@ internal static class UsageCard
             {
                 AppendHeader(section, snapshot, now, options, large: false);
                 AppendOverviewStatus(section, entry);
+                var listed = new HashSet<string>();
                 foreach (var window in Ordered(snapshot))
                 {
-                    AppendWindow(section, window, now, options, spacing: "Medium");
+                    AppendWindow(section, window, now, options, spacing: "Medium", listed);
                 }
             }
             else
@@ -202,9 +203,10 @@ internal static class UsageCard
             body.Add(Note($"Showing the last good reading from {DescribeAge(now - snapshot.FetchedAt)}. A live refresh did not succeed.", "Warning"));
         }
 
+        var listed = new HashSet<string>();
         foreach (var window in Ordered(snapshot))
         {
-            AppendWindow(body, window, now, options, spacing: "Medium");
+            AppendWindow(body, window, now, options, spacing: "Medium", listed);
         }
 
         // The header already carries the plan and the account email; the rest goes in
@@ -256,11 +258,17 @@ internal static class UsageCard
     /// One usage window as the tray panel draws it: the title, the bar, the percentage
     /// with the reset opposite, then the pace line.
     /// </summary>
-    private static void AppendWindow(JsonArray body, UsageWindow window, DateTimeOffset now, DisplayOptions options, string spacing)
+    private static void AppendWindow(JsonArray body, UsageWindow window, DateTimeOffset now, DisplayOptions options, string spacing, ISet<string> listed)
     {
         var duration = DescribeDuration(window.DurationMinutes);
         var heading = duration is null ? window.Label : $"{window.Label} · {duration}";
         body.Add(Text(heading, weight: "Bolder", spacing: spacing));
+
+        // A group's models go under its first window only; its other windows share them.
+        if (window.Models is { } models && listed.Add(models))
+        {
+            body.Add(Text(models, size: "Small", subtle: true, spacing: "None"));
+        }
 
         var flags = DescribeFlags(window, options).ToList();
         var pace = options.ShowPace ? PanelText.Pace(window, now) : null;

@@ -114,15 +114,13 @@ internal sealed class AntigravityUsageProvider : IUsageProvider
         }
 
         var windows = new List<UsageWindow>();
-        var catalog = new List<UsageDetail>();
+
         foreach (var group in groups.EnumerateArray())
         {
             var groupName = TryGetString(group, "name") ?? "Models";
-            if (ModelsIn(TryGetString(group, "description")) is { } models &&
-                catalog.All(detail => detail.Label != groupName))
-            {
-                catalog.Add(new UsageDetail(groupName, models));
-            }
+            // Which models the group covers, read on every refresh, so a catalog change in
+            // agy shows up without a code change.
+            var models = ModelsIn(TryGetString(group, "description"));
 
             if (!group.TryGetProperty("buckets", out var buckets) || buckets.ValueKind != JsonValueKind.Array)
             {
@@ -161,7 +159,7 @@ internal sealed class AntigravityUsageProvider : IUsageProvider
                     : (DateTimeOffset?)null;
                 var usedPercent = Math.Round(100d - Math.Clamp(remainingFraction, 0d, 1d) * 100d, 6);
 
-                windows.Add(new UsageWindow(kind, label, usedPercent, reset, duration));
+                windows.Add(new UsageWindow(kind, label, usedPercent, reset, duration, Models: models));
             }
         }
 
@@ -182,9 +180,6 @@ internal sealed class AntigravityUsageProvider : IUsageProvider
             details.Add(new UsageDetail("Account", activeAccount));
         }
 
-        // Which models each group covers, read from the payload on every refresh, so a
-        // catalog change in agy shows up without a code change.
-        details.AddRange(catalog);
 
         return new UsageSnapshot("Antigravity", plan, windows, fetchedAt, "agy /usage", Details: details);
     }

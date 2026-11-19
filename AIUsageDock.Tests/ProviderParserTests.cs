@@ -371,13 +371,16 @@ public sealed class ProviderParserTests
 
         var snapshot = AntigravityUsageProvider.ParseUsageJson(json, DateTimeOffset.UnixEpoch, "dev@example.com")!;
 
+        // Every window of a group carries its models; a group without a model list has none.
         Assert.Equal(
             [
-                ("Account", "dev@example.com"),
+                ("Gemini Models", "Gemini 4 Neon, Gemini 4 Hydrogen, Gemini 3.8 Flash"),
                 ("Gemini Models", "Gemini 4 Neon, Gemini 4 Hydrogen, Gemini 3.8 Flash"),
                 ("Claude and GPT models", "Claude Opus 5.5, Claude Sonnet 5.5, GPT-OSS 120B"),
+                ("Gemini 4 Argon", null),
             ],
-            snapshot.AccountDetails.Select(detail => (detail.Label, detail.Value)));
+            snapshot.Windows.Select(window => (window.Label, window.Models)));
+        Assert.Equal([("Account", "dev@example.com")], snapshot.AccountDetails.Select(detail => (detail.Label, detail.Value)));
         Assert.Equal(4, snapshot.Windows.Count);
     }
 

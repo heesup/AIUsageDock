@@ -22,6 +22,7 @@ All notable changes to AI Usage Dock. Versions match the `v*` tags and the packa
   - **Check provider status**: reads the public status pages of Claude (`status.claude.com`) and OpenAI (`status.openai.com`), at most every five minutes, and shows a line on the page and `incident` on the band while one is open. No credentials or account data are sent.
   - **Quota warnings**: a Windows notification when a window reaches the **Warn at** or **Critical at** threshold, or runs out. Each window notifies once per level and again only after it has reset.
   - Clicking a quota warning opens that provider's usage page through a Command Palette command link (`x-cmdpal://commands/...`). Command Palette asks once per page whether to allow the link; choose **Always allow** to skip the question afterwards.
+  - The Antigravity page shows which models each quota group covers ("Gemini 4 Neon, Gemini 4 Hydrogen, Gemini 3.8 Flash") under the group's first window. The list is read from `agy /usage` on every refresh, so a model catalog change in agy appears without an extension update.
   - **Warn at** and **Critical at** set the usage where bars turn yellow and red.
 
 ### Changed

@@ -15,7 +15,8 @@ internal sealed record UsageWindow(
     DateTimeOffset? ResetsAt,
     int? DurationMinutes = null,
     string? Severity = null,
-    string? LockedReason = null)
+    string? LockedReason = null,
+    string? Models = null)
 {
     public double RemainingPercent => Math.Clamp(100d - UsedPercent, 0d, 100d);
 

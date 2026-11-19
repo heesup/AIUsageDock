@@ -124,6 +124,27 @@ public sealed class UsageCardTests
     }
 
     [Fact]
+    public void ModelListSitsUnderTheFirstWindowOfItsGroup()
+    {
+        const string gemini = "Gemini 4 Neon, Gemini 3.8 Flash";
+        var snapshot = new UsageSnapshot(
+            "Antigravity",
+            null,
+            [
+                new UsageWindow(UsageWindowKind.Session, "Gemini Models", 10, Now.AddHours(2), 300, Models: gemini),
+                new UsageWindow(UsageWindowKind.Weekly, "Gemini Models", 20, Now.AddDays(3), 10080, Models: gemini),
+                new UsageWindow(UsageWindowKind.Weekly, "Gemini 4 Argon", 5, Now.AddDays(3), 10080),
+            ],
+            Now,
+            "agy /usage");
+
+        var texts = AllText(Body(UsageCard.Build(UsageResult.Success(snapshot), "Antigravity", "antigravity", Now)));
+
+        Assert.Equal(texts.IndexOf("Gemini Models · 5h") + 1, texts.IndexOf(gemini));
+        Assert.Single(texts, gemini);
+    }
+
+    [Fact]
     public void ThresholdsFollowTheSettings()
     {
         var options = new DisplayOptions(HighUsedPercent: 50, CriticalUsedPercent: 80);
